@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 # ==========================================
 load_dotenv()
 my_api_key = os.getenv("GEMINI_API_KEY")
+discord_url = os.getenv("DISCORD_WEBHOOK")
 
 if not my_api_key:
     print("Error: Could not find GEMINI_API_KEY. Make sure your .env file exists and is formatted correctly.")
@@ -62,18 +63,24 @@ def run_automation():
                 return
 
     # ==========================================
-    # 4. THE ACTION: Save as a simple Markdown file
+    # 4. THE ACTION: Send directly to Discord!
     # ==========================================
-    try:
-        # We save it as "summary.md" so the GitHub Action can easily find it
-        with open("summary.md", "w", encoding="utf-8") as file:
-            file.write(f"## [{title}]({link})\n\n")
-            file.write("### AI Analyst Summary\n")
-            file.write(ai_summary)
-
-        print("Success! Summary saved locally to summary.md")
-    except Exception as e:
-        print(f"Failed to save file: {e}")
+    if discord_url:
+        print("Sending to Discord...")
+        
+        # We package the text into a simple JSON format Discord understands
+        payload = {
+            "content": f"## Today's Top 5 Tech Stories\n\n{ai_summary}"
+        }
+        
+        try:
+            # We use 'requests' to POST the data, just like we used it to GET the news!
+            requests.post(discord_url, json=payload)
+            print("Success! Notification sent.")
+        except Exception as e:
+            print(f"Failed to send to Discord: {e}")
+    else:
+        print("Warning: No DISCORD_WEBHOOK secret found. Could not send message.")
 
 if __name__ == "__main__":
     run_automation()
