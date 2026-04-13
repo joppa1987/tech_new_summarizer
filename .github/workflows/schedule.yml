@@ -1,0 +1,42 @@
+name: Daily Tech News Automator
+
+# 1. The Trigger (When should this run?)
+on:
+  schedule:
+    - cron: '0 12 * * *' # This runs every day at 12:00 PM UTC
+  workflow_dispatch:     # This adds a button so you can trigger it manually!
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write # Gives the script permission to post an Issue
+
+    steps:
+      # Step A: Load your code into the cloud computer
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step B: Install Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # Step C: Install the required libraries
+      - name: Install Dependencies
+        run: pip install requests google-generativeai python-dotenv
+
+      # Step D: Run your Python script using the Secret Vault key
+      - name: Run Automation Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python automation.py
+
+      # Step E: Take the summary.md file and post it as a GitHub Issue
+      - name: Create GitHub Issue
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Daily Tech Summary
+          content-filepath: ./summary.md
+          labels: daily-news
