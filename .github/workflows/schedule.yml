@@ -31,6 +31,7 @@ jobs:
       - name: Run Automation Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python automation.py
 
       # Step E: Take the summary.md file and post it as a GitHub Issue
