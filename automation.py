@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import google.generativeai as genai
 from datetime import datetime
@@ -11,41 +12,54 @@ load_dotenv()
 my_api_key = os.getenv("GEMINI_API_KEY")
 
 if not my_api_key:
-    print("Error: Could not find GEMINI_API_KEY. Make sure your .env file exists and is formatted correctly.")
+    print("Error: Could not find GEMINI_API_KEY.")
     exit()
 
 genai.configure(api_key=my_api_key)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 def run_automation():
-    print("Starting secure automation workflow...")
+    print("Starting Top 5 automation workflow...")
 
     # ==========================================
-    # 2. THE FETCH: Grab live data from Hacker News
+    # 2. THE FETCH: Grab the top 5 stories
     # ==========================================
     try:
         top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json"
         story_ids = requests.get(top_stories_url).json()
-        top_story_id = story_ids[0]
+        top_5_ids = story_ids[:5] # This slices the list to grab the first 5
 
-        story_url = f"https://hacker-news.firebaseio.com/v0/item/{top_story_id}.json"
-        story_data = requests.get(story_url).json()
-        
-        title = story_data.get("title", "No title")
-        link = story_data.get("url", "No link provided")
-        print(f"Fetched top story: '{title}'")
-        
+        # We will store the combined text here to send to the AI later
+        stories_text_for_ai = ""
+
+        # Loop through each of the 5 IDs to get their details
+        for i, story_id in enumerate(top_5_ids, 1):
+            story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
+            story_data = requests.get(story_url).json()
+            
+            title = story_data.get("title", "No title")
+            link = story_data.get("url", "No link provided")
+            
+            print(f"Fetched #{i}: '{title}'")
+            
+            # Add this story to our growing text block
+            stories_text_for_ai += f"Story {i}:\nTitle: {title}\nLink: {link}\n\n"
+            
     except Exception as e:
         print(f"Failed to fetch data: {e}")
         return
 
     # ==========================================
-    # 3. THE LOGIC (Updated to ask for Markdown instead of HTML)
+    # 3. THE LOGIC: Ask the AI to summarize the batch
     # ==========================================
-    import time
-    prompt = f"You are a tech analyst. Explain why a developer might find this news interesting. Keep it to 2 short, punchy bullet points. Use standard Markdown formatting. Title: '{title}'. Link: {link}."
+    prompt = f"""You are a tech analyst. Read the following 5 top tech news stories. 
+    For each story, provide the Title as a Markdown header (linked to the URL), followed by exactly 2 short, punchy bullet points explaining why a developer would find it interesting.
     
-    print("Asking AI to summarize...")
+    Here are the stories:
+    {stories_text_for_ai}
+    """
+    
+    print("Asking AI to summarize the batch...")
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
@@ -62,13 +76,11 @@ def run_automation():
                 return
 
     # ==========================================
-    # 4. THE ACTION: Save as a simple Markdown file
+    # 4. THE ACTION: Save the combined summary
     # ==========================================
     try:
-        # We save it as "summary.md" so the GitHub Action can easily find it
         with open("summary.md", "w", encoding="utf-8") as file:
-            file.write(f"## [{title}]({link})\n\n")
-            file.write("### AI Analyst Summary\n")
+            file.write("## Today's Top 5 Tech Stories\n\n")
             file.write(ai_summary)
 
         print("Success! Summary saved locally to summary.md")
